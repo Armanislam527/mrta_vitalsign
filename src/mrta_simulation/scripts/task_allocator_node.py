@@ -39,6 +39,7 @@ class TaskAllocator(object):
         self.assignment = [-1] * self.n_robots
         self.assign_time = [0.0] * self.n_robots
         self.rr_tick = 0
+        
         self.pubs = [
             rospy.Publisher(
                 "/robot_%d/assigned_patient" % i, TaskAssignment, queue_size=1, latch=True
@@ -91,7 +92,6 @@ class TaskAllocator(object):
         if self.assignment[robot_id] < 0:
             return False
         if now - self.assign_time[robot_id] < self.cooldown_duration:
-            # Allow a switch only on a large utility jump (risk/staleness spike).
             if new_util - old_util < self.cooldown_threshold:
                 return True
         if new_pid != self.assignment[robot_id] and new_util < old_util + self.hysteresis:
@@ -120,42 +120,105 @@ class TaskAllocator(object):
             }
             self.event_pub.publish(String(data=json.dumps(payload)))
 
+    def _get_occupied_patients(self):
+        """Returns a set of patient IDs that are currently assigned to any robot.
+        This acts as a temporary lock to prevent clustering."""
+        valid_pids = {p.patient_id for p in self.belief}
+        return {pid for pid in self.assignment if pid >= 0 and pid in valid_pids}
+
     def _round_robin(self):
         n_p = len(self.belief)
         if n_p == 0:
             return
+            
+        occupied = self._get_occupied_patients()
+        chosen = {}
+        used_p = set()
+        
+        # 1. Secure current assignments (temporary lock)
         for r in range(self.n_robots):
-            pid = (self.rr_tick + r) % n_p
-            old = self.assignment[r]
-            old_u = self._utility(r, self.belief[old]) if 0 <= old < n_p else -1e9
-            new_u = self._utility(r, self.belief[pid])
-            if self._cooldown_blocks(r, pid, new_u, old_u):
-                pid = old
-            self._publish(r, pid)
+            old_pid = self.assignment[r]
+            if old_pid >= 0:
+                chosen[r] = old_pid
+                used_p.add(old_pid)
+                
+        # 2. Assign remaining robots to unoccupied patients
+        for r in range(self.n_robots):
+            if r in chosen:
+                continue
+            
+            assigned = False
+            for i in range(n_p):
+                pid = (self.rr_tick + r + i) % n_p
+                if pid in used_p:
+                    continue  # Skip patients already being monitored/approached
+                
+                old = self.assignment[r]
+                old_u = self._utility(r, self.belief[old]) if 0 <= old < n_p else -1e9
+                new_u = self._utility(r, self.belief[pid])
+                
+                if self._cooldown_blocks(r, pid, new_u, old_u):
+                    break  # Keep old assignment if blocked by cooldown
+                    
+                chosen[r] = pid
+                used_p.add(pid)
+                assigned = True
+                break
+                
+            if not assigned and self.assignment[r] >= 0:
+                chosen[r] = self.assignment[r]
+
         self.rr_tick += 1
+        
+        for r in range(self.n_robots):
+            pid = chosen.get(r, -1)
+            self._publish(r, pid)
 
     def _greedy(self):
         n_p = len(self.belief)
         if n_p == 0:
             return
+            
+        occupied = self._get_occupied_patients()
+        
         used_r = set()
         used_p = set()
+        chosen = {}
+        
+        # Build utility pairs, explicitly blocking other robots from bidding on occupied patients
         pairs = []
         for r in range(self.n_robots):
             for p in self.belief:
-                pairs.append((self._utility(r, p), r, p.patient_id))
+                pid = p.patient_id
+                # CRITICAL FIX: If patient is occupied by ANOTHER robot, this robot cannot bid for it
+                if pid in occupied and self.assignment[r] != pid:
+                    continue
+                pairs.append((self._utility(r, p), r, pid))
+                
         pairs.sort(reverse=True)
-        chosen = {}
+        
         for u, r, pid in pairs:
             if r in used_r or pid in used_p:
                 continue
+                
             old = self.assignment[r]
             old_u = self._utility(r, self.belief[old]) if 0 <= old < n_p else -1e9
+            
+            # If robot is keeping its current occupied patient, bypass cooldown/hysteresis
+            if old == pid:
+                chosen[r] = pid
+                used_r.add(r)
+                used_p.add(pid)
+                continue
+                
             if self._cooldown_blocks(r, pid, u, old_u):
                 continue
+                
             chosen[r] = pid
             used_r.add(r)
             used_p.add(pid)
+            
+        # Publish assignments
         for r in range(self.n_robots):
             pid = chosen.get(r, self.assignment[r])
             self._publish(r, pid)
@@ -166,6 +229,7 @@ class TaskAllocator(object):
             return
         if not self.belief:
             return
+            
         if self.mode == "round_robin":
             self._round_robin()
         else:
