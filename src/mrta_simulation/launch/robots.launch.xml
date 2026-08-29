@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="robot_id" default="0"/>
+
+  <group ns="robot_$(arg robot_id)">
+    <node pkg="mrta_simulation" type="robot_kinematics_sim_node.py"
+          name="robot_kinematics_sim" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+    <node pkg="mrta_simulation" type="rppg_sensor_sim_node.py"
+          name="rppg_sensor_sim" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+    <node pkg="mrta_simulation" type="env_sensor_sim_node.py"
+          name="env_sensor_sim" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+    <node pkg="mrta_simulation" type="risk_fusion_node.py"
+          name="risk_fusion" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+    <node pkg="mrta_simulation" type="waypoint_navigator_node.py"
+          name="waypoint_navigator" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+    <node pkg="mrta_simulation" type="cbba_bidding_node.py"
+          name="cbba_bidding" output="screen">
+      <param name="robot_id" value="$(arg robot_id)"/>
+    </node>
+  </group>
+</launch>

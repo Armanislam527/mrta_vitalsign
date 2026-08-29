@@ -1,0 +1,5 @@
+int32 patient_id
+float32 last_known_risk
+float64 last_update_time
+float32 staleness_sec
+geometry_msgs/Point position

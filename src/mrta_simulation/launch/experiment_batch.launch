@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Parametrized batch run: no RViz, timed shutdown via experiment_duration. -->
+<launch>
+  <arg name="allocator_mode" default="greedy"/>
+  <arg name="num_robots" default="3"/>
+  <arg name="num_patients" default="5"/>
+  <arg name="duration" default="120"/>
+  <arg name="run_tag" default="batch"/>
+
+  <include file="$(find mrta_simulation)/launch/simulation.launch">
+    <arg name="allocator_mode" value="$(arg allocator_mode)"/>
+    <arg name="num_robots" value="$(arg num_robots)"/>
+    <arg name="num_patients" value="$(arg num_patients)"/>
+    <arg name="use_rviz" value="false"/>
+    <arg name="log" value="true"/>
+    <arg name="run_tag" value="$(arg run_tag)"/>
+    <arg name="experiment_duration" value="$(arg duration)"/>
+  </include>
+</launch>

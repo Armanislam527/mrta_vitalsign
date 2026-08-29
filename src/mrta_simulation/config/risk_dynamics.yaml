@@ -1,0 +1,12 @@
+# Hidden patient risk dynamics (simulation-only).
+
+risk_dynamics:
+  hr_base: 75.0
+  rr_base: 16.0
+  hrv_base: 0.20
+  temp_base: 36.8
+  noise_base: 42.0
+  drift_std: 0.08
+  spike_prob: 0.002       # per-tick probability at 10 Hz (~1.2 spikes/min/patient expected lower)
+  spike_magnitude: 0.45
+  spike_duration: 25.0    # seconds

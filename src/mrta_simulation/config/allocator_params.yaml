@@ -1,0 +1,14 @@
+# Allocator mode and utility / cooldown settings.
+
+allocator_mode: greedy    # round_robin | greedy | cbba
+
+allocator:
+  w1: 1.00     # last-known risk
+  w2: 0.60     # staleness
+  w3: 0.35     # distance penalty
+  w4: 0.10     # battery penalty
+  cooldown_threshold: 0.15
+  cooldown_duration: 8.0
+  hysteresis: 0.08
+  cbba_bundle_size: 1
+  cbba_max_iter: 50

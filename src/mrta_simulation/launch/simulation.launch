@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="allocator_mode" default="greedy"/>
+  <arg name="num_robots" default="3"/>
+  <arg name="num_patients" default="5"/>
+  <arg name="use_rviz" default="true"/>
+  <arg name="log" default="true"/>
+  <arg name="run_tag" default=""/>
+  <arg name="experiment_duration" default="0"/>
+
+  <rosparam file="$(find mrta_simulation)/config/sim_params.yaml" command="load"/>
+  <rosparam file="$(find mrta_simulation)/config/risk_dynamics.yaml" command="load"/>
+  <rosparam file="$(find mrta_simulation)/config/allocator_params.yaml" command="load"/>
+
+  <param name="allocator_mode" value="$(arg allocator_mode)"/>
+  <param name="num_robots" value="$(arg num_robots)"/>
+  <param name="num_patients" value="$(arg num_patients)"/>
+  <param name="experiment_duration" value="$(arg experiment_duration)"/>
+  <param name="results_dir" value="$(find mrta_simulation)/results/logs"/>
+
+  <include file="$(find mrta_simulation)/launch/patients.launch.xml"/>
+
+  <!-- ROS1 has no native for-loop; spawn up to 8 robots gated by num_robots. -->
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 0)">
+    <arg name="robot_id" value="0"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 1)">
+    <arg name="robot_id" value="1"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 2)">
+    <arg name="robot_id" value="2"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 3)">
+    <arg name="robot_id" value="3"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 4)">
+    <arg name="robot_id" value="4"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 5)">
+    <arg name="robot_id" value="5"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 6)">
+    <arg name="robot_id" value="6"/>
+  </include>
+  <include file="$(find mrta_simulation)/launch/robots.launch.xml" if="$(eval int(arg('num_robots')) > 7)">
+    <arg name="robot_id" value="7"/>
+  </include>
+
+  <node pkg="mrta_simulation" type="patient_knowledge_base_node.py"
+        name="patient_knowledge_base" output="screen"/>
+  <node pkg="mrta_simulation" type="task_allocator_node.py"
+        name="task_allocator" output="screen"/>
+  <node pkg="mrta_simulation" type="rviz_marker_publisher_node.py"
+        name="rviz_marker_publisher" output="screen"/>
+
+  <node pkg="mrta_simulation" type="metrics_logger_node.py"
+        name="metrics_logger" output="screen" if="$(arg log)"
+        required="$(eval 'true' if float(arg('experiment_duration')) > 0 else 'false')">
+    <param name="run_tag" value="$(arg run_tag)"/>
+  </node>
+
+  <node pkg="rviz" type="rviz" name="rviz" output="screen"
+        args="-d $(find mrta_simulation)/rviz/mrta_sim.rviz"
+        if="$(arg use_rviz)"/>
+</launch>

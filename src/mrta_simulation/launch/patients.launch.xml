@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="mrta_simulation" type="patient_simulator_node.py"
+        name="patient_simulator" output="screen"/>
+</launch>

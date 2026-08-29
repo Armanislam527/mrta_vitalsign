@@ -1,0 +1,16 @@
+build/
+devel/
+logs/
+.catkin_workspace
+src/CMakeLists.txt
+*.pyc
+__pycache__/
+*.egg-info/
+.catkin_tools/
+src/mrta_simulation/results/logs/*
+src/mrta_simulation/results/plots/*
+!src/mrta_simulation/results/logs/.gitkeep
+!src/mrta_simulation/results/plots/.gitkeep
+.idea/
+.vscode/
+*.bag
