@@ -87,6 +87,12 @@ class TaskAllocator(object):
             self.w4,
         )
 
+    def _patient_by_id(self, patient_id):
+        return next(
+            (patient for patient in self.belief if patient.patient_id == patient_id),
+            None,
+        )
+
     def _cooldown_blocks(self, robot_id, new_pid, new_util, old_util):
         now = rospy.get_time()
         if self.assignment[robot_id] < 0:
@@ -130,46 +136,36 @@ class TaskAllocator(object):
         n_p = len(self.belief)
         if n_p == 0:
             return
-            
-        occupied = self._get_occupied_patients()
+
         chosen = {}
         used_p = set()
-        
-        # 1. Secure current assignments (temporary lock)
+
+        # Try to move every robot to its rotated candidate; only fall back to
+        # keeping the old assignment when cooldown/hysteresis actually blocks it.
         for r in range(self.n_robots):
             old_pid = self.assignment[r]
-            if old_pid >= 0:
-                chosen[r] = old_pid
-                used_p.add(old_pid)
-                
-        # 2. Assign remaining robots to unoccupied patients
-        for r in range(self.n_robots):
-            if r in chosen:
-                continue
-            
+            old_patient = self._patient_by_id(old_pid)
+            old_u = self._utility(r, old_patient) if old_patient else -1e9
+
             assigned = False
             for i in range(n_p):
-                pid = (self.rr_tick + r + i) % n_p
+                patient = self.belief[(self.rr_tick + r + i) % n_p]
+                pid = patient.patient_id
                 if pid in used_p:
-                    continue  # Skip patients already being monitored/approached
-                
-                old = self.assignment[r]
-                old_u = self._utility(r, self.belief[old]) if 0 <= old < n_p else -1e9
-                new_u = self._utility(r, self.belief[pid])
-                
-                if self._cooldown_blocks(r, pid, new_u, old_u):
-                    break  # Keep old assignment if blocked by cooldown
-                    
+                    continue
+                new_u = self._utility(r, patient)
+                if pid != old_pid and self._cooldown_blocks(r, pid, new_u, old_u):
+                    continue
                 chosen[r] = pid
                 used_p.add(pid)
                 assigned = True
                 break
-                
-            if not assigned and self.assignment[r] >= 0:
-                chosen[r] = self.assignment[r]
+
+            if not assigned and old_patient and old_pid not in used_p:
+                chosen[r] = old_pid
+                used_p.add(old_pid)
 
         self.rr_tick += 1
-        
         for r in range(self.n_robots):
             pid = chosen.get(r, -1)
             self._publish(r, pid)
@@ -202,7 +198,8 @@ class TaskAllocator(object):
                 continue
                 
             old = self.assignment[r]
-            old_u = self._utility(r, self.belief[old]) if 0 <= old < n_p else -1e9
+            old_patient = self._patient_by_id(old)
+            old_u = self._utility(r, old_patient) if old_patient else -1e9
             
             # If robot is keeping its current occupied patient, bypass cooldown/hysteresis
             if old == pid:
