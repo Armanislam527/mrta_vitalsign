@@ -1,0 +1,6 @@
+opencv-python==4.8.1.78
+numpy>=1.17.0
+scipy>=1.10.1
+matplotlib
+pyserial
+pytest
