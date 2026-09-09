@@ -265,14 +265,32 @@ cd week2_rppg
 python3 -m pip install -r requirements.txt
 ```
 
-### Step B — use ROI extraction
+### Step B — run the live rPPG demo from a real camera
+
+The workspace now includes a concrete demo script that runs the built serial pipeline in one command and writes a CSV result file.
 
 ```bash
 cd week2_rppg
-python3 -c "from src.roi_extractor import ROIExtractor; print('ROI importer ready')"
+python3 src/demo_live_rppg.py --camera 0 --seconds 2 --fps 30.0 --save-results results/live_demo_hr.csv
 ```
 
-For a real webcam session:
+This command executes the project flow in the installed order:
+
+1. ROI extractor reads frames from the selected camera.
+2. POS algorithm constructs a pulse signal from the ROI RGB triplets.
+3. HR estimator computes the FFT peak in the HR band and writes the result.
+4. The output file is saved to results/live_demo_hr.csv.
+
+The generated CSV uses lines such as:
+
+```text
+module,metric,value
+roi,frames,60
+pos,pulse_length,60
+hr_estimator,hr_bpm,60.000
+```
+
+For a direct Python ROI session:
 
 ```bash
 cd week2_rppg
@@ -349,6 +367,8 @@ python3 -m pytest tests/test_roi_extractor.py tests/test_chrom_algorithm.py test
 ## 8. Known limitation
 
 This workspace currently implements the deterministic algorithm skeletons and regression tests. It is not yet a full hardware-integrated pipeline for MAX30102, DHT22/SHT31, or MEMS microphone hardware. These will require real device wiring and serial I/O integration in the next extension phase.
+
+The live ROI fallback uses OpenCV Haar cascade detection and does not require MediaPipe to run. MediaPipe is an optional dependency and may fail in this environment because the MediaPipe wheel depends on a JAX backend or extra package that is not available in the current package registry. The current verified environment therefore uses the OpenCV cascade fallback and the serial implementation path for HR estimation.
 
 ## 9. Serial maintenance checklist
 

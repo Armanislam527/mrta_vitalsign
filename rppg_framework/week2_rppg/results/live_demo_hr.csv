@@ -1,0 +1,5 @@
+module,metric,value
+roi,frames,60
+pos,pulse_length,60
+hr_estimator,hr_bpm,120.000
+env_sensors,noise_db,not_available

@@ -56,7 +56,9 @@ class ROIExtractor:
             roi = self._extract_roi_from_frame(rgb)
             if roi is None:
                 if previous_triplet is None:
-                    previous_triplet = np.array([0.0, 0.0, 0.0])
+                    # Fall back to full-frame mean RGB until a face ROI is found.
+                    full_mean = rgb.mean(axis=(0, 1)).astype(float)
+                    previous_triplet = full_mean.copy()
                 triplet = previous_triplet.copy()
             else:
                 # Compute mean RGB values inside ROI
@@ -102,7 +104,8 @@ class ROIExtractor:
             roi = self._extract_roi_from_frame(frame)
             if roi is None:
                 if previous_triplet is None:
-                    previous_triplet = np.array([0.0, 0.0, 0.0])
+                    # Use a full-frame color baseline until a face ROI stabilizes.
+                    previous_triplet = frame.mean(axis=(0, 1)).astype(float)
                 triplet = previous_triplet.copy()
             else:
                 rgb_mean = roi.mean(axis=(0, 1))
