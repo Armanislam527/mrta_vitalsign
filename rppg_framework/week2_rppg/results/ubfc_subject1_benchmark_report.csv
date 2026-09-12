@@ -1,0 +1,2 @@
+subject_id,video_path,ground_truth_path,estimated_hr_bpm,ground_truth_hr_bpm,mae_bpm,sample_rate
+subject1,data\dataset\DATASET_2\subject1\vid.avi,data\dataset\DATASET_2\subject1\ground_truth.txt,107.82508351648352,106.70456819650937,1.120515319974146,29.264106

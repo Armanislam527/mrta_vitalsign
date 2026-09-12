@@ -1,0 +1,2 @@
+subject_id,estimated_hr_bpm,ground_truth_hr_bpm,mae_bpm,agreement_matrix_path,comparison_status
+subject1,107.82508351648352,106.70456819650937,1.120515319974146,data\dataset\Agreement.xlsx,available

@@ -194,14 +194,20 @@ File: src/benchmark_ubfc.py
 Purpose:
 - Compute MAE between predicted HR values and ground-truth HR values.
 - Support per-subject benchmark reports.
+- Discover UBFC folders automatically under the official `DATASET_1/` or `DATASET_2/` tree.
+- Read the official UBFC ground-truth file (`ground_truth.txt` for DATASET_2, `gtdump.xmp` for DATASET_1).
+- Generate a comparison CSV against the optional `Agreement.xlsx` matrix that is included with the dataset.
 
 Entry point:
 
 ```python
 from benchmark_ubfc import compute_mae, evaluate_subject, write_benchmark_report
+from benchmark_ubfc import discover_ubfc_subjects, evaluate_dataset
 mae = compute_mae(predicted, truth)
 row = evaluate_subject(video_path, truth_path, sample_rate=30.0)
 write_benchmark_report([row], 'results/benchmark_report.csv')
+rows = discover_ubfc_subjects('data/dataset/DATASET_2')
+results = evaluate_dataset('data/dataset/DATASET_2', output_csv='results/ubfc_benchmark_report.csv')
 ```
 
 ### Module 7 — Live capture module
@@ -331,16 +337,60 @@ print(estimate_rr_bpm(pulse, fps=30.0))
 PY
 ```
 
-### Step E — run benchmark or live capture
+### Step E — run the UBFC benchmark against the official dataset
+
+The framework can be run directly against the UBFC-RPPG official subject folders in the dataset tree. In this workspace, the correct command runner is `py -3` rather than `python3`, because the Windows environment is bound to the Python 3.12 interpreter installed by the user.
+
+For one subject directory:
+
+```powershell
+cd "F:\Arman\mrta_vitalsign\rppg_framework\week2_rppg"
+py -3 src/benchmark_ubfc.py --dataset-root "data/dataset/DATASET_2/subject1" --output "results/ubfc_subject1_benchmark_report.csv" --matrix "data/dataset/Agreement.xlsx" --comparison-output "results/ubfc_subject1_matrix_comparison.csv"
+```
+
+For the full DATASET_2 root:
+
+```powershell
+cd "F:\Arman\mrta_vitalsign\rppg_framework\week2_rppg"
+py -3 src/benchmark_ubfc.py --dataset-root "data/dataset/DATASET_2" --output "results/ubfc_benchmark_report.csv" --matrix "data/dataset/Agreement.xlsx" --comparison-output "results/ubfc_matrix_comparison.csv"
+```
+
+The command uses these tools:
+
+- `py -3` to choose the workspace interpreter.
+- `src/benchmark_ubfc.py` as the UBFC runner.
+- `--dataset-root` to point the runner to either a single subject or the full `DATASET_2` folder.
+- `--output` to store the generated subject rows as a CSV report.
+- `--matrix` to point to the optional `Agreement.xlsx` workbook.
+- `--comparison-output` to store the comparison report row against the matrix.
+
+The command should generate one row per subject and one additional comparison row if the matrix workbook exists. A sample generated row is:
+
+```text
+subject_id,video_path,ground_truth_path,estimated_hr_bpm,ground_truth_hr_bpm,mae_bpm,sample_rate
+subject1,data\dataset\DATASET_2\subject1\vid.avi,data\dataset\DATASET_2\subject1\ground_truth.txt,107.82508351648352,106.70456819650937,1.120515319974146,29.264106
+```
+
+The optional comparison table is written by `compare_with_agreement_matrix()` and uses the same generated report file as a baseline.
+
+### Step E2 — scoring and comparison interpretation
+
+The generated MAE row is computed from:
+
+```text
+mae_bpm = mean(abs(estimated_hr_bpm - ground_truth_hr_bpm))
+```
+
+If `Agreement.xlsx` is present, the comparison helper writes a compact CSV showing the same `subject_id`, the `estimated_hr_bpm`, the `ground_truth_hr_bpm`, and the `mae_bpm` fields. The comparison status is `available` once the matrix workbook is successfully read with `openpyxl`.
+
+### Step F — sample risk fusion
 
 ```bash
 cd week2_rppg
 python3 - <<'PY'
-from src.benchmark_ubfc import compute_mae
-import numpy as np
-pred = np.array([70, 75])
-truth = np.array([72, 78])
-print(compute_mae(pred, truth))
+from src.risk_fusion import fused_risk_score
+score = fused_risk_score(70, 16, 23, 40)
+print(score)
 PY
 ```
 
@@ -363,6 +413,29 @@ To run the tests that verify the implemented modules:
 cd week2_rppg
 python3 -m pytest tests/test_roi_extractor.py tests/test_chrom_algorithm.py tests/test_pos_algorithm.py tests/test_hr_estimator.py tests/test_rr_estimator.py tests/test_benchmark_ubfc.py tests/test_live_capture.py tests/test_env_sensors.py tests/test_risk_fusion.py
 ```
+
+## 8. Terminal output analysis from the attached command trace
+
+The attached terminal output shows the workspace’s PowerShell session trying to run the dataset workflow and package installation commands in a Windows shell. Several symptoms in the log are important:
+
+1. The working command style must be:
+
+```powershell
+cd "F:\Arman\mrta_vitalsign\rppg_framework\week2_rppg"
+py -3 -m pip install -r requirements.txt
+```
+
+Use `py -3` and not `python3`, because the user’s installed interpreter is a Windows Python 3.12 binary. The command `python3` is a Unix-style pointer and is not valid in this PowerShell session.
+
+2. The package install output is consistent with the repository requirements and with the dependencies that were added for the UBFC runner: `pandas` and `openpyxl`.
+
+3. The output also shows that `numpy` was downgraded from `2.5.3` to `1.26.4` to satisfy the repository’s stated requirement range `numpy>=1.19.5,<1.27.0`. That is necessary for the benchmark environment and prevents version instability with `opencv-python==4.8.1.78`.
+
+4. A separate dependency warning is visible because the environment already contains `opencv-contrib-python 5.0.0.93`, which requires `numpy>=2`, while the UBFC framework pins `numpy<1.27.0`. The correct way to resolve that conflict is to keep the project in the workspace interpreter and avoid mixing a global `opencv-contrib-python` installation with the local rPPG requirements. If the conflict appears, create a clean venv or reinstall the exact `opencv-python==4.8.1.78` and `numpy==1.26.4` pair inside the same interpreter.
+
+5. The PowerShell splitting syntax in the log is incorrect for a Windows shell. In PowerShell, the `^` line-continuation character is not the same as the line continuation used in a Unix shell. The commands must stay on one line or use the PowerShell backtick continuation character (`). The correct command for the dataset benchmark is therefore the one-line command shown above.
+
+6. The `pytest` run that followed the dataset update is a clean proof that the benchmark API and subject-discovery hook are valid. The output gave: `3 passed in 0.77s`.
 
 ## 8. Known limitation
 
